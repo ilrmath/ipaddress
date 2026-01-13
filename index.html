@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>IPビット操作ラボ (iPad完全最適化版)</title>
+  <title>IPビット操作ラボ (独立スクロール版)</title>
   <style>
     :root {
       --bg: #1a202c;
@@ -92,10 +92,17 @@
     .btn-net1 { background: var(--net1); }
     .btn-net2 { background: var(--net2); }
 
-    /* --- 下部パネル --- */
+    /* --- 下部レイアウト --- */
     .bottom-panel { display: grid; grid-template-columns: 240px 1fr; gap: 15px; }
     .config-box { background: var(--panel); padding: 15px; border-radius: 12px; border: 1px solid #4a5568; display: flex; flex-direction: column; gap: 12px; }
-    .analysis-box { background: var(--panel); padding: 15px; border-radius: 12px; border: 1px solid #4a5568; display: flex; flex-direction: column; overflow: hidden; }
+    
+    /* 解析エリア：縦に2つ並べるコンテナ */
+    .analysis-stack { display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
+    
+    .analysis-box { 
+      background: var(--panel); padding: 12px; border-radius: 12px; border: 1px solid #4a5568;
+      display: flex; flex-direction: column;
+    }
 
     input[type="text"] { width: 100%; padding: 8px; background: #171923; border: 1px solid #555; color: #fff; font-family: monospace; border-radius: 6px; box-sizing: border-box;}
     .range-wrap { display: flex; align-items: center; gap: 10px; }
@@ -105,45 +112,38 @@
     .warning-area { background: var(--warn-bg); border: 2px solid var(--error); }
     .success-area { background: #22543d; border: 2px solid #48bb78; }
 
-    .fix-btn { margin-top: 8px; width: 100%; padding: 8px; background: #fff; color: #c53030; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
-
-    /* --- 【重要】iPad最適化設計 --- */
-    .bit-container { 
+    /* --- スクロール制御の核心 --- */
+    .bit-scroll-area { 
+      overflow-x: auto; 
+      -webkit-overflow-scrolling: touch; 
       width: 100%;
-      overflow-x: auto; /* 一応残すが、基本不要なように設計 */
-      overflow-y: hidden;
-      -webkit-overflow-scrolling: touch;
-      padding-bottom: 10px;
+      margin-top: 5px;
     }
+    /* 行の最小幅を固定値(840px)に設定してiPadでスクロールを強制発動させる */
     .bit-row, .decimal-row { 
       display: flex; 
       align-items: center; 
-      margin-bottom: 3px; 
-      min-width: min-content; /* 中身の崩れ防止 */
+      margin-bottom: 2px; 
+      width: 840px; 
+      flex-shrink: 0;
     }
     .bit-label, .decimal-placeholder { 
-      width: 130px; /* 固定幅 */
+      width: 140px; 
       font-size: 11px; 
       font-weight: bold; 
       color: #a0aec0; 
       text-align: right; 
-      padding-right: 12px; 
+      padding-right: 15px; 
       flex-shrink: 0;
       white-space: nowrap;
     }
     .bit {
-      /* ビットの幅をiPadの画面幅に合わせて変動させる設定 */
-      width: calc((100vw - 420px) / 32); 
-      min-width: 15px; /* 小さくなりすぎ防止 */
-      max-width: 20px; /* 大きくなりすぎ防止 */
-      height: 24px; 
-      display: flex; align-items: center; justify-content: center;
+      width: 20px; height: 24px; display: flex; align-items: center; justify-content: center;
       font-family: monospace; font-size: 12px; font-weight:bold; background: #1a202c; color: #555;
       border-radius: 2px; flex-shrink: 0; margin-right: 1px; border: 1px solid transparent;
     }
-    .bit.sep { width: 6px; background: transparent; color: #666; border: none; }
+    .bit.sep { width: 10px; background: transparent; color: #666; border: none; }
     
-    /* 配色 */
     .bit.ip-on { background: var(--ip-bg-on); color: #fff; border-bottom: 3px solid var(--ip-color); }
     .bit.ip-off { background: #1a202c; color: #555; border-bottom: 3px solid #718096; }
     .bit.mask-on { background: #555; color: #aaa; }
@@ -156,14 +156,9 @@
     .bit.interactive { cursor: pointer; border: 1px solid #666; }
     .bit.error-bit { background: var(--error-bg) !important; color: #faf089 !important; animation: blink 1s infinite alternate; }
 
-    .decimal-group { 
-      /* ビット8個分の幅に合わせる */
-      width: calc(((100vw - 420px) / 32 + 1px) * 8 + 4px);
-      min-width: 130px;
-      display: flex; justify-content: center; align-items: center; flex-shrink: 0; 
-    }
+    .decimal-group { width: 167px; display: flex; justify-content: center; align-items: center; flex-shrink: 0; }
     .decimal-val { font-family: monospace; font-size: 16px; font-weight: bold; }
-    .decimal-dot { width: 8px; text-align: center; color: #666; font-family: monospace; }
+    .decimal-dot { width: 11px; text-align: center; color: #666; font-family: monospace; }
     
     .decimal-val.ip { color: var(--ip-color); }
     .decimal-val.nw { color: var(--highlight); }
@@ -181,9 +176,6 @@
       background: #fff; box-shadow: 0 0 10px #fff; z-index: 20; opacity: 0; pointer-events: none; transform: translate(-50%, -50%);
     }
     .packet.broadcast { background: var(--broadcast-yellow); box-shadow: 0 0 10px var(--broadcast-yellow); }
-    
-    .broadcast-section { margin-top: 15px; padding-top: 15px; border-top: 1px dashed #4a5568; animation: fadeIn 0.4s; }
-    @keyframes fadeIn { from{opacity:0;} to{opacity:1;} }
   </style>
 </head>
 <body>
@@ -243,10 +235,20 @@
       </div>
     </div>
 
-    <div class="analysis-box">
-      <h2 style="font-size:15px; margin:0; border-left:4px solid var(--accent); padding-left:10px; color:#fff;">🔬 ビット解析</h2>
-      <div id="bit-area" class="bit-container"></div>
-      <div id="broadcast-analysis-area" class="broadcast-section" style="display:none;"></div>
+    <div class="analysis-stack">
+      <div class="analysis-box">
+        <h2 style="font-size:14px; margin:0; border-left:4px solid var(--accent); padding-left:10px; color:#fff;">🔬 NWアドレス解析</h2>
+        <div class="bit-scroll-area">
+          <div id="bit-area-nw"></div>
+        </div>
+      </div>
+
+      <div class="analysis-box" id="bc-analysis-box" style="display:none;">
+        <h2 style="font-size:14px; margin:0; border-left:4px solid var(--broadcast-yellow); padding-left:10px; color:var(--broadcast-yellow);">📡 ブロードキャスト解析</h2>
+        <div class="bit-scroll-area">
+          <div id="bit-area-bc"></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -288,8 +290,7 @@
       return res;
     };
     return {
-      ipOcts: octs, ipBits: ipBits,
-      maskBits: maskBits,
+      ipOcts: octs, ipBits: ipBits, maskBits: maskBits,
       netBits: netBits, netOcts: getOcts(netBits), netIp: toIp(netBits),
       bcBits: bcBits, bcOcts: getOcts(bcBits), bcIp: toIp(bcBits)
     };
@@ -331,10 +332,7 @@
 
   function updateConfigIP() {
     const ipStr = document.getElementById('cfg-ip').value;
-    if(ipStr.split('.').length === 4) {
-      DEVICES[currentId].ip = ipStr;
-      updateAllLabels(); refreshAnalysis();
-    }
+    if(ipStr.split('.').length === 4) { DEVICES[currentId].ip = ipStr; updateAllLabels(); refreshAnalysis(); }
   }
 
   function updateConfigCIDR() {
@@ -359,33 +357,32 @@
     const peer = DEVICES[getPeerId(currentId)];
     const peerCalc = getCalculatedData(peer.ip, peer.cidr);
     const isMismatch = (calc.netIp !== peerCalc.netIp);
+
     document.getElementById('warning-area').classList.toggle('active', isMismatch);
     document.getElementById('success-area').classList.toggle('active', !isMismatch);
     if(isMismatch) document.getElementById('peer-name').innerText = peer.name;
-    renderBits(calc, d.cidr, peerCalc.netIp);
-    renderBroadcastInfo(calc, d.cidr);
-  }
 
-  function renderBits(calc, cidr, peerNetIp) {
-    const area = document.getElementById('bit-area');
-    area.innerHTML = '';
-    const peerNetBits = toBin(parseIP(peerNetIp));
-    area.appendChild(createDecimalRow(calc.ipOcts, 'ip'));
-    area.appendChild(createBitRow('IPアドレス', calc.ipBits, 'ip', cidr, peerNetBits));
-    area.appendChild(createBitRow('サブネットマスク', calc.maskBits, 'mask', cidr));
-    area.appendChild(createBitRow('ネットワークアドレス', calc.netBits, 'net', cidr, peerNetBits));
-    area.appendChild(createDecimalRow(calc.netOcts, 'nw'));
-  }
+    // NWエリア描画
+    const nwArea = document.getElementById('bit-area-nw');
+    nwArea.innerHTML = '';
+    const pNetBits = toBin(parseIP(peerCalc.netIp));
+    nwArea.appendChild(createDecimalRow(calc.ipOcts, 'ip'));
+    nwArea.appendChild(createBitRow('IPアドレス', calc.ipBits, 'ip', d.cidr, pNetBits));
+    nwArea.appendChild(createBitRow('サブネットマスク', calc.maskBits, 'mask', d.cidr));
+    nwArea.appendChild(createBitRow('ネットワークアドレス', calc.netBits, 'net', d.cidr, pNetBits));
+    nwArea.appendChild(createDecimalRow(calc.netOcts, 'nw'));
 
-  function renderBroadcastInfo(calc, cidr) {
-    const area = document.getElementById('broadcast-analysis-area');
+    // BCエリア描画
+    const bcBox = document.getElementById('bc-analysis-box');
+    const bcArea = document.getElementById('bit-area-bc');
     if (!activeBroadcastNet || document.getElementById('dev-'+currentId).classList.contains('error')) {
-      area.style.display = 'none'; return;
+      bcBox.style.display = 'none';
+    } else {
+      bcBox.style.display = 'block';
+      bcArea.innerHTML = '';
+      bcArea.appendChild(createBitRow('ブロードキャストアドレス', calc.bcBits, 'bc', d.cidr));
+      bcArea.appendChild(createDecimalRow(calc.bcOcts, 'bc'));
     }
-    area.style.display = 'block';
-    area.innerHTML = '<div style="font-size:11px; color:var(--broadcast-yellow); font-weight:bold; margin-bottom:8px; opacity:0.8;">📡 ブロードキャストアドレス解析:</div>';
-    area.appendChild(createBitRow('ブロードキャストアドレス', calc.bcBits, 'bc', cidr));
-    area.appendChild(createDecimalRow(calc.bcOcts, 'bc'));
   }
 
   function createBitRow(label, bits, type, cidr, peerNetBits = []) {
@@ -406,9 +403,7 @@
       } else if (type === 'net') {
         if(i < cidr) {
           cls += (b===1 ? ' nw-on' : ' nw-off');
-          if(peerNetBits.length && b !== peerNetBits[i]) {
-            cls += ' error-bit interactive'; bit.onclick = () => toggleIpBit(i); 
-          }
+          if(peerNetBits.length && b !== peerNetBits[i]) { cls += ' error-bit interactive'; bit.onclick = () => toggleIpBit(i); }
         }
       } else if (type === 'bc') {
         if(i < cidr) cls += (b===1 ? ' bc-net-on' : ' bc-net-off');
