@@ -2,8 +2,8 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>IPビット操作ラボ (iPad最適化・ラベル完全版)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
+  <title>IPビット操作ラボ (iPadスクロール完全対応版)</title>
   <style>
     :root {
       --bg: #1a202c;
@@ -26,7 +26,7 @@
     }
     body {
       margin: 0; font-family: "Helvetica Neue", Arial, sans-serif;
-      background: var(--bg); color: var(--text); padding: 10px;
+      background: var(--bg); color: var(--text); padding: 15px;
     }
     h1 { font-size: 20px; border-bottom: 2px solid var(--accent); margin-bottom: 15px; padding-bottom: 10px; }
     .container { max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 15px; }
@@ -107,37 +107,38 @@
 
     .fix-btn { margin-top: 8px; width: 100%; padding: 8px; background: #fff; color: #c53030; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
 
-    /* --- ビット表示 (iPad全表示対応: ラベル折り返し版) --- */
+    /* --- ビット表示エリア全体のスクロール処理 --- */
     .bit-container { 
-      padding-bottom: 10px; 
+      overflow-x: auto; /* 強制的に横スクロールを許可 */
+      -webkit-overflow-scrolling: touch; /* iPadの滑らかなスクロール */
+      padding-bottom: 20px; 
       margin-top: 5px; 
       width: 100%;
-      overflow: hidden; 
     }
-    .bit-row { 
+    .bit-row, .decimal-row { 
       display: flex; 
       align-items: center; 
       margin-bottom: 4px; 
+      width: max-content; /* 画面幅を突き抜けて中身の幅を維持 */
+      min-width: 850px; /* iPadの幅(通常768px〜)より確実に広く設定しスクロールを誘発 */
     }
-    .bit-label { 
-      width: 75px; 
-      font-size: 9px; 
+    .bit-label, .decimal-placeholder { 
+      width: 140px; /* きっちり書くために幅を戻す */
+      font-size: 11px; 
       font-weight: bold; 
       color: #a0aec0; 
-      text-align: left; 
-      padding-right: 5px; 
+      text-align: right; 
+      padding-right: 15px; 
       flex-shrink: 0;
-      line-height: 1.1; /* 行間を詰めて2行で表示 */
-      display: flex;
-      align-items: center;
+      white-space: nowrap;
     }
     .bit {
-      width: 18px; 
+      width: 20px; 
       height: 24px; display: flex; align-items: center; justify-content: center;
-      font-family: monospace; font-size: 11px; font-weight:bold; background: #1a202c; color: #555;
+      font-family: monospace; font-size: 12px; font-weight:bold; background: #1a202c; color: #555;
       border-radius: 2px; flex-shrink: 0; margin-right: 1px; border: 1px solid transparent;
     }
-    .bit.sep { width: 8px; background: transparent; color: #666; border: none; }
+    .bit.sep { width: 10px; background: transparent; color: #666; border: none; }
     
     .bit.ip-on { background: var(--ip-bg-on); color: #fff; border-bottom: 3px solid var(--ip-color); }
     .bit.ip-off { background: #1a202c; color: #555; border-bottom: 3px solid #718096; }
@@ -152,19 +153,12 @@
     .bit.interactive { cursor: pointer; border: 1px solid #666; }
     .bit.error-bit { background: var(--error-bg) !important; color: #faf089 !important; animation: blink 1s infinite alternate; }
 
-    .decimal-row { 
-      display: flex; 
-      align-items: center; 
-      margin-bottom: 6px; 
-      height: 24px; 
-    }
-    .decimal-placeholder { width: 75px; flex-shrink: 0; }
     .decimal-group { 
-      width: 151px; 
+      width: 167px; 
       display: flex; justify-content: center; align-items: center; flex-shrink: 0; 
     }
-    .decimal-val { font-family: monospace; font-size: 15px; font-weight: bold; }
-    .decimal-dot { width: 8px; text-align: center; color: #666; font-family: monospace; }
+    .decimal-val { font-family: monospace; font-size: 16px; font-weight: bold; }
+    .decimal-dot { width: 11px; text-align: center; color: #666; font-family: monospace; }
     
     .decimal-val.ip { color: var(--ip-color); }
     .decimal-val.nw { color: var(--highlight); }
