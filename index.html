@@ -3,32 +3,25 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>IPビット操作ラボ (配色改善版)</title>
+  <title>IPビット操作ラボ (配色完全統一版)</title>
   <style>
     :root {
       --bg: #1a202c;
       --panel: #2d3748;
       --text: #e2e8f0;
-      
-      /* --- 色定義の調整 --- */
       --accent: #63b3ed;
       --selected: #f6e05e;
       --error: #fc8181;
       --error-bg: #c53030;
       --warn-bg: #742a2a;
-      
-      /* ネットワークエリアの色 */
-      --net1: #38b2ac; /* 少し緑寄りのティールに変更 */
-      --net2: #ed8936; /* オレンジ */
-      
-      /* 役割別の色 */
-      --mask: #a0aec0;       /* マスクはグレー系で控えめに */
-      --highlight: #d53f8c;  /* NWアドレス（計算結果）はピンク */
-      
-      /* ★変更: IPアドレス用の色 (明るいパープル) */
+      --net1: #38b2ac;
+      --net2: #ed8936;
+      --mask: #a0aec0;
+      --highlight: #d53f8c; /* NWアドレス用ピンク */
+      --broadcast-orange: #ed8936; /* BCアドレスネットワーク部1用 */
+      --broadcast-yellow: #f6e05e; /* BCアドレスホスト部用 */
       --ip-color: #d6bcfa;   
-      --ip-bg-on: #805ad5;   /* ビットON時の背景色 (濃い紫) */
-      
+      --ip-bg-on: #805ad5;   
       --success: #48bb78;
     }
     body {
@@ -36,15 +29,13 @@
       background: var(--bg); color: var(--text); padding: 20px;
     }
     h1 { font-size: 20px; border-bottom: 2px solid var(--accent); margin-bottom: 15px; padding-bottom: 10px; }
-
     .container { max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 15px; }
 
-    /* --- 1. ネットワーク図 --- */
+    /* --- ネットワーク図 --- */
     .topology-panel {
       background: #171923; border: 2px solid #4a5568; border-radius: 12px;
       height: 320px; position: relative; overflow: hidden; padding: 10px;
     }
-
     .zone {
       position: absolute; top: 10px; bottom: 50px; width: 45%; 
       border-radius: 16px; border: 2px dashed rgba(255,255,255,0.2);
@@ -52,50 +43,37 @@
     }
     .zone-net1 { left: 1%; background: rgba(56, 178, 172, 0.05); border-color: var(--net1); }
     .zone-net2 { right: 1%; background: rgba(237, 137, 54, 0.05); border-color: var(--net2); }
-    
     .zone-label { 
       font-weight: bold; font-size: 16px; 
       background: rgba(0,0,0,0.6); padding: 4px 16px; border-radius: 20px; margin-bottom: 2px;
       pointer-events: auto;
     }
-    
+
     .device {
-      width: 110px; text-align: center; position: absolute; cursor: pointer;
+      width: 120px; text-align: center; position: absolute; cursor: pointer;
       transition: all 0.2s; z-index: 10; padding: 5px; border-radius: 8px;
       transform: translate(-50%, -50%); border: 2px solid transparent;
     }
     .device:hover { transform: translate(-50%, -50%) scale(1.05); background: rgba(255,255,255,0.1); }
+    .device.selected { border-color: var(--selected); background: rgba(246, 224, 94, 0.1); box-shadow: 0 0 15px rgba(246, 224, 94, 0.3); z-index: 20; }
     
-    .device.selected { 
-      border-color: var(--selected); background: rgba(246, 224, 94, 0.15);
-      box-shadow: 0 0 15px rgba(246, 224, 94, 0.4); z-index: 20; 
-    }
     .device.selected::after {
-      content: "▼ 選択中"; position: absolute; top: -28px; left: 50%;
-      transform: translateX(-50%); background: var(--selected); color: #1a202c;
-      font-size: 11px; font-weight: bold; padding: 3px 8px; border-radius: 12px;
-      white-space: nowrap; pointer-events: none; animation: floatBadge 1s infinite alternate ease-in-out;
+      content: "▼ 選択中"; 
+      position: absolute; top: -30px; left: 50%; transform: translateX(-50%); 
+      background: var(--selected); color: #1a202c;
+      font-size: 11px; font-weight: bold; padding: 4px 10px; border-radius: 12px;
+      white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.3); pointer-events: none;
+      animation: floatBadge 1s infinite alternate ease-in-out;
     }
-    @keyframes floatBadge { from { transform: translateX(-50%) translateY(0); } to { transform: translateX(-50%) translateY(-4px); } }
+    @keyframes floatBadge { from { transform: translateX(-50%) translateY(0); } to { transform: translateX(-50%) translateY(-3px); } }
 
-    .device.error {
-      border-color: var(--error); background: rgba(252, 129, 129, 0.15);
-      box-shadow: 0 0 0 2px var(--error); animation: pulse-error 2s infinite; z-index: 15;
-    }
-    .device.ok { border-color: var(--success); background: rgba(72, 187, 120, 0.1); }
-
-    @keyframes pulse-error {
-      0% { box-shadow: 0 0 0 0px rgba(252, 129, 129, 0.7); }
-      70% { box-shadow: 0 0 0 8px rgba(252, 129, 129, 0); }
-      100% { box-shadow: 0 0 0 0px rgba(252, 129, 129, 0); }
-    }
-    
-    .device-icon { font-size: 40px; display: block; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5)); margin-bottom: 2px; }
-    .device-name { font-size: 11px; font-weight: bold; background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 4px; display:inline-block;}
+    .device.error { border-color: var(--error); background: rgba(252, 129, 129, 0.15); animation: pulse-error 2s infinite; }
+    .device-icon { font-size: 40px; display: block; margin-bottom: 2px; }
+    .device-name { font-size: 11px; font-weight: bold; background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 4px; display:inline-block; white-space: nowrap;}
     .device-ip { 
-      font-size: 11px; color: #fff; margin-top: 4px; display: block; 
-      background: #000; border-radius: 4px; padding: 2px 6px;
-      font-family: monospace; white-space: nowrap; border: 1px solid #444;
+      font-size: 11px; color: #fff; margin-top: 4px; display: inline-block; background: #000; 
+      border-radius: 4px; padding: 2px 6px; font-family: monospace; border: 1px solid #444;
+      white-space: nowrap; width: auto;
     }
 
     .d-router { left: 50%; top: 50%; width: 80px; cursor: default;}
@@ -105,130 +83,85 @@
     .cables { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
     line { stroke: #4a5568; stroke-width: 3; }
 
-    .action-bar { 
-      position: absolute; bottom: 10px; width: 100%; 
-      display: flex; justify-content: center; gap: 40px; pointer-events: none; z-index: 20;
-    }
+    .action-bar { position: absolute; bottom: 10px; width: 100%; display: flex; justify-content: center; gap: 40px; pointer-events: none; z-index: 20; }
     button.action-btn {
       pointer-events: auto; padding: 8px 25px; border: none; border-radius: 30px; 
       font-size: 13px; font-weight: bold; cursor: pointer; color: #1a202c; 
-      box-shadow: 0 4px 10px rgba(0,0,0,0.5); transition: transform 0.1s;
-      display: flex; align-items: center; gap: 5px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5); transition: 0.1s;
     }
-    button.action-btn:active { transform: scale(0.95); }
     .btn-net1 { background: var(--net1); }
     .btn-net2 { background: var(--net2); }
 
-    /* --- 2. 下部パネル --- */
-    .bottom-panel { 
-      display: grid; 
-      grid-template-columns: 220px 1fr; 
-      gap: 15px; 
-    }
+    /* --- 下部パネル --- */
+    .bottom-panel { display: grid; grid-template-columns: 240px 1fr; gap: 15px; }
     .config-box { background: var(--panel); padding: 15px; border-radius: 12px; border: 1px solid #4a5568; display: flex; flex-direction: column; gap: 12px; }
-    .analysis-box { 
-      background: var(--panel); padding: 15px; border-radius: 12px; border: 1px solid #4a5568; 
-      display: flex; flex-direction: column; overflow: hidden; 
-    }
+    .analysis-box { background: var(--panel); padding: 15px; border-radius: 12px; border: 1px solid #4a5568; display: flex; flex-direction: column; overflow: hidden; }
 
-    input[type="text"] { width: 100%; padding: 8px; background: #171923; border: 1px solid #555; color: #fff; font-family: monospace; font-size: 14px; border-radius: 6px; box-sizing: border-box; }
+    input[type="text"] { width: 100%; padding: 8px; background: #171923; border: 1px solid #555; color: #fff; font-family: monospace; border-radius: 6px; box-sizing: border-box;}
     .range-wrap { display: flex; align-items: center; gap: 10px; }
-    input[type="range"] { flex: 1; cursor: pointer; }
 
-    .warning-area {
-      background: var(--warn-bg); border: 2px solid var(--error); border-radius: 6px;
-      padding: 10px; display: none; margin-top: 5px; animation: fadeIn 0.3s;
-    }
-    .warning-area.active { display: block; }
-    
-    .success-area {
-      background: #22543d; border: 2px solid #48bb78; border-radius: 6px;
-      padding: 10px; display: none; margin-top: 5px; animation: fadeIn 0.3s;
-    }
-    .success-area.active { display: block; }
+    .warning-area, .success-area { padding: 10px; display: none; margin-top: 5px; border-radius: 6px; }
+    .warning-area.active, .success-area.active { display: block; }
+    .warning-area { background: var(--warn-bg); border: 2px solid var(--error); }
+    .success-area { background: #22543d; border: 2px solid #48bb78; }
 
-    button.fix-btn {
-      margin-top: 8px; width: 100%; padding: 8px; background: #fff; color: #c53030;
-      border: none; border-radius: 4px; font-weight: bold; cursor: pointer;
-      display: flex; align-items: center; justify-content: center; gap: 5px; transition: 0.2s;
-    }
+    .fix-btn { margin-top: 8px; width: 100%; padding: 8px; background: #fff; color: #c53030; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
 
-    /* --- ビット表示 (色調整済み) --- */
+    /* --- ビット表示 --- */
     .bit-container { overflow-x: auto; padding-bottom: 5px; margin-top: 5px; }
-    .bit-row { display: flex; align-items: center; margin-bottom: 3px; }
-    .bit-label { width: 110px; font-size: 11px; font-weight: bold; color: #a0aec0; text-align: right; padding-right: 10px; flex-shrink: 0; }
-    
+    .bit-row { display: flex; align-items: center; margin-bottom: 2px; }
+    .bit-label { width: 145px; font-size: 10px; font-weight: bold; color: #a0aec0; text-align: right; padding-right: 12px; flex-shrink: 0; }
     .bit {
       width: 20px; height: 24px; display: flex; align-items: center; justify-content: center;
       font-family: monospace; font-size: 12px; font-weight:bold; background: #1a202c; color: #555;
-      border-radius: 2px; flex-shrink: 0; margin-right: 1px; border: 1px solid transparent; user-select: none;
+      border-radius: 2px; flex-shrink: 0; margin-right: 1px; border: 1px solid transparent;
     }
     .bit.sep { width: 10px; background: transparent; color: #666; border: none; }
-
-    /* ★ IPアドレス (パープル系) */
-    .bit.ip-on { 
-      background: var(--ip-bg-on); 
-      color: #fff; 
-      border-bottom: 3px solid var(--ip-color); 
-    }
-    .bit.ip-off { 
-      background: #1a202c; 
-      color: #555; 
-      border-bottom: 3px solid #718096; /* ホスト部OFFはグレー */
-    }
     
+    /* ビット色指定 */
+    .bit.ip-on { background: var(--ip-bg-on); color: #fff; border-bottom: 3px solid var(--ip-color); }
+    .bit.ip-off { background: #1a202c; color: #555; border-bottom: 3px solid #718096; }
     .bit.mask-on { background: #555; color: #aaa; }
-    
-    /* ★ NWアドレス (ピンク系) */
     .bit.nw-on { background: var(--highlight); color: #fff; }
     .bit.nw-off { background: #1a202c; color: #555; border: 1px dashed var(--highlight); opacity: 0.6; }
     
+    /* --- BCアドレス配色ロジックの修正 --- */
+    /* ネットワーク部 1 (オレンジ背景・塗りつぶし) */
+    .bit.bc-net-on { background: var(--broadcast-orange); color: #fff; } 
+    /* ネットワーク部 0 (黒背景・枠線あり) */
+    .bit.bc-net-off { background: #1a202c; color: #555; border: 1px dashed var(--broadcast-orange); opacity: 0.6; }
+    /* ホスト部 (黄色ベース) */
+    .bit.bc-host-on { background: var(--broadcast-yellow); color: #1a202c; box-shadow: 0 0 5px var(--broadcast-yellow); }
+
     .bit.interactive { cursor: pointer; border: 1px solid #666; }
-    .bit.interactive:hover { border-color: #fff; transform: translateY(-1px); }
+    .bit.error-bit { background: var(--error-bg) !important; color: #faf089 !important; animation: blink 1s infinite alternate; }
 
-    .bit.error-bit { 
-      background: var(--error-bg) !important; color: #faf089 !important;
-      border: 1px solid var(--error) !important; animation: blink 1s infinite alternate;
-    }
-    @keyframes blink { from{opacity:0.8;} to{opacity:1;} }
-
-    /* 10進数行共通スタイル */
-    .decimal-row { display: flex; align-items: center; margin-bottom: 5px; }
-    .decimal-val { 
-      width: 168px; text-align: center; flex-shrink: 0; 
-      font-family: monospace; font-size: 16px; font-weight: bold; 
-    }
-    .decimal-sep { width: 10px; text-align: center; flex-shrink: 0; color: #666; }
-    .decimal-placeholder { width: 110px; flex-shrink: 0; }
-
-    /* ★ IPアドレスの10進数文字色 */
-    .decimal-val.ip { 
-      color: var(--ip-color); 
-      text-shadow: 0 0 10px rgba(214, 188, 250, 0.3); 
-    }
+    /* 10進数配置修正 */
+    .decimal-row { display: flex; align-items: center; margin-bottom: 6px; height: 24px; }
+    .decimal-placeholder { width: 145px; flex-shrink: 0; }
+    .decimal-group { width: 167px; display: flex; justify-content: center; align-items: center; flex-shrink: 0; }
+    .decimal-val { font-family: monospace; font-size: 16px; font-weight: bold; }
+    .decimal-dot { width: 11px; text-align: center; color: #666; font-family: monospace; }
     
-    /* ★ NWアドレスの10進数文字色 */
-    .decimal-val.nw { 
-      color: var(--highlight); 
-    }
+    .decimal-val.ip { color: var(--ip-color); }
+    .decimal-val.nw { color: var(--highlight); }
+    .decimal-val.bc { color: var(--broadcast-yellow); }
 
     .msg-toast {
       position: fixed; bottom: 20px; right: 20px; background: #2d3748; border-left: 4px solid var(--accent);
       color: #fff; padding: 15px 25px; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-      transform: translateY(100px); transition: transform 0.3s; z-index: 100;
+      transform: translateY(100px); transition: 0.3s; z-index: 100;
     }
     .msg-toast.show { transform: translateY(0); }
-    .msg-toast.error { border-left-color: var(--error); }
-    .msg-toast.success { border-left-color: #48bb78; background: #22543d; }
 
     .packet {
       position: absolute; width: 14px; height: 14px; border-radius: 50%;
       background: #fff; box-shadow: 0 0 10px #fff; z-index: 20; opacity: 0; pointer-events: none; transform: translate(-50%, -50%);
     }
-    .packet.broadcast { background: var(--mask); box-shadow: 0 0 10px var(--mask); }
-
+    .packet.broadcast { background: var(--broadcast-yellow); box-shadow: 0 0 10px var(--broadcast-yellow); }
+    
+    .broadcast-section { margin-top: 15px; padding-top: 15px; border-top: 1px dashed #4a5568; animation: fadeIn 0.4s; }
     @keyframes fadeIn { from{opacity:0;} to{opacity:1;} }
-    @media (max-width: 800px) { .bottom-panel { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -271,7 +204,7 @@
         <input type="text" id="cfg-ip" value="" oninput="updateConfigIP()">
       </div>
       <div>
-        <label>サブネットマスク (CIDR記法)</label>
+        <label>サブネットマスク</label>
         <div class="range-wrap">
           <input type="range" id="cfg-cidr" min="8" max="30" value="24" oninput="updateConfigCIDR()">
           <span style="font-family:monospace; font-weight:bold;" id="disp-cidr">/24</span>
@@ -280,9 +213,7 @@
       
       <div id="warning-area" class="warning-area">
         <div style="color:#fc8181; font-weight:bold; font-size:12px;">⚠️ ネットワーク不整合</div>
-        <div style="font-size:11px; color:#ffd7d7; margin:5px 0;">
-          隣の <span id="peer-name"></span> とNWアドレスが一致しません。
-        </div>
+        <div style="font-size:11px; color:#ffd7d7; margin:5px 0;">隣の <span id="peer-name"></span> とNWアドレスが一致しません。</div>
         <button class="fix-btn" onclick="fixNetwork()">🛠️ 修正する</button>
       </div>
       <div id="success-area" class="success-area">
@@ -291,10 +222,9 @@
     </div>
 
     <div class="analysis-box">
-      <h2 style="font-size:15px; margin:0; border-left:4px solid var(--accent); padding-left:10px; color:#fff;">
-        🔬 ビット解析 (比較中)
-      </h2>
+      <h2 style="font-size:15px; margin:0; border-left:4px solid var(--accent); padding-left:10px; color:#fff;">🔬 ビット解析</h2>
       <div id="bit-area" class="bit-container"></div>
+      <div id="broadcast-analysis-area" class="broadcast-section" style="display:none;"></div>
     </div>
   </div>
 </div>
@@ -302,14 +232,15 @@
 <div id="toast" class="msg-toast"></div>
 
 <script>
-  /* === データ === */
   const DEVICES = {
     'pc11': { ip: '192.168.10.7', cidr: 24, name: 'PC 11', zone: 'net1' },
     'pc12': { ip: '192.168.10.20', cidr: 24, name: 'PC 12', zone: 'net1' },
-    'pc21': { ip: '192.168.15.147', cidr: 26, name: 'くまPC', zone: 'net2' },
-    'pc22': { ip: '192.168.15.190', cidr: 26, name: 'PC 22', zone: 'net2' }
+    'pc21': { ip: '192.168.15.147', cidr: 23, name: 'くまPC', zone: 'net2' },
+    'pc22': { ip: '192.168.15.190', cidr: 23, name: 'PC 22', zone: 'net2' }
   };
   let currentId = 'pc11';
+  let activeBroadcastNet = null;
+
   const POS = {
     'pc11':{x:'15%',y:96}, 'pc12':{x:'15%',y:224},
     'hub1':{x:'30%',y:160}, 'router':{x:'50%',y:160},
@@ -329,11 +260,18 @@
     const ipBits = toBin(octs);
     const maskBits = Array(32).fill(0).map((_,i)=>i<cidr?1:0);
     const netBits = ipBits.map((b,i)=>b&maskBits[i]);
-    const netOcts = []; for(let i=0;i<4;i++) netOcts.push(parseInt(netBits.slice(i*8,(i+1)*8).join(''),2));
+    const bcBits = ipBits.map((b,i)=> i < cidr ? (b & maskBits[i]) : 1);
+    
+    const getOcts = (bits) => {
+      let res=[]; for(let i=0;i<4;i++) res.push(parseInt(bits.slice(i*8,(i+1)*8).join(''),2));
+      return res;
+    };
+
     return {
-      ipOcts: octs,
-      maskIp: toIp(maskBits), netIp: toIp(netBits), netOcts: netOcts,
-      ipBits: ipBits, maskBits: maskBits, netBits: netBits
+      ipOcts: octs, ipBits: ipBits,
+      maskBits: maskBits,
+      netBits: netBits, netOcts: getOcts(netBits), netIp: toIp(netBits),
+      bcBits: bcBits, bcOcts: getOcts(bcBits), bcIp: toIp(bcBits)
     };
   }
 
@@ -346,24 +284,22 @@
   window.onload = () => { updateAllLabels(); selectPC('pc11'); };
 
   function updateAllLabels() {
-    const zones = ['net1', 'net2'];
-    zones.forEach(z => {
+    ['net1', 'net2'].forEach(z => {
       const ids = Object.keys(DEVICES).filter(k => DEVICES[k].zone === z);
-      const d1 = DEVICES[ids[0]], d2 = DEVICES[ids[1]];
-      const c1 = getCalculatedData(d1.ip, d1.cidr), c2 = getCalculatedData(d2.ip, d2.cidr);
+      const c1 = getCalculatedData(DEVICES[ids[0]].ip, DEVICES[ids[0]].cidr);
+      const c2 = getCalculatedData(DEVICES[ids[1]].ip, DEVICES[ids[1]].cidr);
       const isMismatch = c1.netIp !== c2.netIp;
       ids.forEach(id => {
         const el = document.getElementById('dev-'+id);
-        const label = document.getElementById('lbl-'+id);
-        label.innerText = `${DEVICES[id].ip} /${DEVICES[id].cidr}`;
-        el.classList.remove('error', 'ok');
-        if (isMismatch) el.classList.add('error'); else el.classList.add('ok');
+        document.getElementById('lbl-'+id).innerText = `${DEVICES[id].ip} /${DEVICES[id].cidr}`;
+        el.classList.toggle('error', isMismatch);
       });
     });
   }
 
   function selectPC(id) {
     currentId = id;
+    activeBroadcastNet = null;
     const data = DEVICES[id];
     document.querySelectorAll('.device').forEach(d => d.classList.remove('selected'));
     document.getElementById('dev-'+id).classList.add('selected');
@@ -390,8 +326,7 @@
   }
 
   function toggleIpBit(index) {
-    const d = DEVICES[currentId];
-    const bits = toBin(parseIP(d.ip));
+    const bits = toBin(parseIP(DEVICES[currentId].ip));
     bits[index] = bits[index] === 1 ? 0 : 1; 
     const newIp = toIp(bits);
     DEVICES[currentId].ip = newIp;
@@ -402,23 +337,19 @@
   function refreshAnalysis() {
     const d = DEVICES[currentId];
     const calc = getCalculatedData(d.ip, d.cidr);
-    const peerId = getPeerId(currentId);
-    const peer = DEVICES[peerId];
+    const peer = DEVICES[getPeerId(currentId)];
     const peerCalc = getCalculatedData(peer.ip, peer.cidr);
-
-    const warnEl = document.getElementById('warning-area');
-    const successEl = document.getElementById('success-area');
     const isMismatch = (calc.netIp !== peerCalc.netIp);
 
-    if (isMismatch) {
-      warnEl.classList.add('active');
-      successEl.classList.remove('active');
-      document.getElementById('peer-name').innerText = peer.name;
-    } else {
-      warnEl.classList.remove('active');
-      successEl.classList.add('active');
+    document.getElementById('warning-area').classList.toggle('active', isMismatch);
+    document.getElementById('success-area').classList.toggle('active', !isMismatch);
+    if(isMismatch) {
+        document.getElementById('peer-name').innerText = peer.name;
+        activeBroadcastNet = null;
     }
+
     renderBits(calc, d.cidr, peerCalc.netIp);
+    renderBroadcastInfo(calc, d.cidr);
   }
 
   function renderBits(calc, cidr, peerNetIp) {
@@ -426,79 +357,120 @@
     area.innerHTML = '';
     const peerNetBits = toBin(parseIP(peerNetIp));
 
-    // --- ★ IPアドレス 10進数行 ---
-    const ipDecRow = document.createElement('div'); ipDecRow.className = 'decimal-row';
-    const ipPh = document.createElement('div'); ipPh.className = 'decimal-placeholder'; ipDecRow.appendChild(ipPh);
-    calc.ipOcts.forEach((oct, i) => {
-      if(i > 0) { const dot = document.createElement('div'); dot.className = 'decimal-sep'; dot.innerText = '.'; ipDecRow.appendChild(dot); }
-      const val = document.createElement('div'); val.className = 'decimal-val ip'; val.innerText = oct; ipDecRow.appendChild(val);
-    });
-    area.appendChild(ipDecRow);
+    area.appendChild(createDecimalRow(calc.ipOcts, 'ip'));
+    area.appendChild(createBitRow('IPアドレス', calc.ipBits, 'ip', cidr, peerNetBits));
+    area.appendChild(createBitRow('サブネットマスク', calc.maskBits, 'mask', cidr));
+    area.appendChild(createBitRow('NWアドレス(2進)', calc.netBits, 'net', cidr, peerNetBits));
+    area.appendChild(createDecimalRow(calc.netOcts, 'nw'));
+  }
 
-    const createRow = (label, bits, type) => {
-      const row = document.createElement('div'); row.className = 'bit-row';
-      const lbl = document.createElement('div'); lbl.className = 'bit-label'; lbl.innerText = label;
-      row.appendChild(lbl);
+  function renderBroadcastInfo(calc, cidr) {
+    const area = document.getElementById('broadcast-analysis-area');
+    if (!activeBroadcastNet || document.getElementById('dev-'+currentId).classList.contains('error')) {
+      area.style.display = 'none';
+      return;
+    }
+    area.style.display = 'block';
+    area.innerHTML = '<div style="font-size:11px; color:var(--broadcast-yellow); font-weight:bold; margin-bottom:8px; opacity:0.8;">📡 送出中のブロードキャストアドレス解析:</div>';
+    area.appendChild(createBitRow('BCアドレス(2進)', calc.bcBits, 'bc', cidr));
+    area.appendChild(createDecimalRow(calc.bcOcts, 'bc'));
+  }
 
-      bits.forEach((b, i) => {
-        if(i > 0 && i % 8 === 0) {
-          const sep = document.createElement('div'); sep.className='bit sep'; sep.innerText='.'; row.appendChild(sep);
-        }
-        const bit = document.createElement('div');
-        let cls = 'bit';
-        if(type === 'ip') {
-          cls += ' interactive';
-          if(b===1) cls += ' ip-on'; else cls += ' ip-off';
-          if(i < cidr) {
-             cls += ' ip-net';
-             if(b !== peerNetBits[i]) cls += ' error-bit';
-          } else { cls += ' ip-host'; }
-          bit.onclick = () => toggleIpBit(i);
-        } else if (type === 'mask') {
-          if(b===1) cls += ' mask-on'; 
-        } else if (type === 'net') {
-          if(i < cidr) {
-            if(b===1) cls += ' nw-on'; else cls += ' nw-off';
-            if(b !== peerNetBits[i]) {
-              cls += ' error-bit interactive'; bit.onclick = () => toggleIpBit(i); 
-            }
+  function createBitRow(label, bits, type, cidr, peerNetBits = []) {
+    const row = document.createElement('div'); row.className = 'bit-row';
+    const lbl = document.createElement('div'); lbl.className = 'bit-label'; lbl.innerText = label;
+    row.appendChild(lbl);
+
+    bits.forEach((b, i) => {
+      if(i > 0 && i % 8 === 0) {
+        const sep = document.createElement('div'); sep.className='bit sep'; sep.innerText='.'; row.appendChild(sep);
+      }
+      const bit = document.createElement('div');
+      let cls = 'bit';
+      if(type === 'ip') {
+        cls += ' interactive ' + (b===1 ? 'ip-on' : 'ip-off');
+        if(i < cidr && peerNetBits.length && b !== peerNetBits[i]) cls += ' error-bit';
+        bit.onclick = () => toggleIpBit(i);
+      } else if (type === 'mask') {
+        if(b===1) cls += ' mask-on'; 
+      } else if (type === 'net') {
+        if(i < cidr) {
+          cls += (b===1 ? ' nw-on' : ' nw-off');
+          if(peerNetBits.length && b !== peerNetBits[i]) {
+            cls += ' error-bit interactive'; bit.onclick = () => toggleIpBit(i); 
           }
         }
-        bit.className = cls; bit.innerText = b; row.appendChild(bit);
-      });
-      area.appendChild(row);
-    };
-
-    createRow('IPアドレス', calc.ipBits, 'ip');
-    createRow('サブネットマスク', calc.maskBits, 'mask');
-    createRow('NWアドレス(2進)', calc.netBits, 'net');
-
-    // --- NWアドレス 10進数行 ---
-    const decRow = document.createElement('div'); decRow.className = 'decimal-row';
-    const ph = document.createElement('div'); ph.className = 'decimal-placeholder'; decRow.appendChild(ph);
-    calc.netOcts.forEach((oct, i) => {
-      if(i > 0) { const dot = document.createElement('div'); dot.className = 'decimal-sep'; dot.innerText = '.'; decRow.appendChild(dot); }
-      const val = document.createElement('div'); val.className = 'decimal-val nw'; val.innerText = oct; decRow.appendChild(val);
+      } else if (type === 'bc') {
+        if(i < cidr) {
+          // ネットワーク部：1は塗りつぶしオレンジ、0は黒背景枠線
+          cls += (b===1 ? ' bc-net-on' : ' bc-net-off');
+        } else {
+          // ホスト部：黄色強調
+          cls += (b===1 ? ' bc-host-on' : ' bc-host-off');
+        }
+      }
+      bit.className = cls; bit.innerText = b; row.appendChild(bit);
     });
-    area.appendChild(decRow);
+    return row;
+  }
+
+  function createDecimalRow(octs, type) {
+    const row = document.createElement('div'); row.className = 'decimal-row';
+    const ph = document.createElement('div'); ph.className = 'decimal-placeholder'; row.appendChild(ph);
+    
+    octs.forEach((oct, i) => {
+      if(i > 0) { 
+        const dot = document.createElement('div'); dot.className = 'decimal-dot'; dot.innerText = '.'; row.appendChild(dot); 
+      }
+      const group = document.createElement('div'); group.className = 'decimal-group';
+      const val = document.createElement('div'); val.className = 'decimal-val ' + type; val.innerText = oct;
+      group.appendChild(val);
+      row.appendChild(group);
+    });
+    return row;
+  }
+
+  function startBroadcast(net) {
+    const d = DEVICES[currentId];
+    if(d.zone !== net) {
+      showToast(`⚠️ ${d.name} は ${net.toUpperCase()} の所属ではありません。`, true); 
+      activeBroadcastNet = null; refreshAnalysis(); return;
+    }
+    if(document.getElementById('dev-'+currentId).classList.contains('error')) {
+      showToast("🚫 ネットワーク設定不整合のため送信できません", true);
+      activeBroadcastNet = null; refreshAnalysis(); return;
+    }
+    activeBroadcastNet = net; refreshAnalysis();
+    showToast(`📡 ${d.name} からブロードキャスト送出中...`);
+    const hub = (net==='net1') ? 'hub1' : 'hub2';
+    const p = document.createElement('div'); p.className='packet broadcast';
+    document.getElementById('topology').appendChild(p);
+    anim(p, currentId, hub, ()=>{
+      p.remove();
+      const peerId = getPeerId(currentId);
+      const p1 = document.createElement('div'); p1.className='packet broadcast';
+      document.getElementById('topology').appendChild(p1);
+      anim(p1, hub, peerId, () => {
+        if(document.getElementById('dev-'+peerId).classList.contains('error')) {
+          showToast("⚠️ 宛先側の設定不整合で無視されました", true);
+          p1.style.background = "var(--error)";
+        } else { showToast("✅ 同一NW内の全端末へ到達！", false, true); }
+        setTimeout(()=>p1.remove(), 500);
+      });
+    });
   }
 
   function fixNetwork() {
     const d = DEVICES[currentId];
-    const peerId = getPeerId(currentId);
-    const peer = DEVICES[peerId];
+    const peer = DEVICES[getPeerId(currentId)];
     const peerCalc = getCalculatedData(peer.ip, peer.cidr);
     const peerNetBits = toBin(parseIP(peerCalc.netIp));
     const currentBits = toBin(parseIP(d.ip));
-    
     const newBits = currentBits.map((b, i) => i < d.cidr ? peerNetBits[i] : b);
-    const newIp = toIp(newBits);
-    
-    DEVICES[currentId].ip = newIp;
-    document.getElementById('cfg-ip').value = newIp;
-    
+    DEVICES[currentId].ip = toIp(newBits);
+    document.getElementById('cfg-ip').value = DEVICES[currentId].ip;
     updateAllLabels(); refreshAnalysis(); 
-    showToast(`✅ ${peer.name} のNWアドレスに合わせました`, false, true);
+    showToast(`✅ ${peer.name} のネットワークに同期しました`, false, true);
   }
 
   function getPx(k){
@@ -522,47 +494,9 @@
 
   function showToast(msg, isError, isSuccess) {
     const t = document.getElementById('toast');
-    t.innerText = msg; t.className = 'msg-toast';
+    t.innerText = msg; t.className = 'msg-toast show';
     if(isError) t.classList.add('error'); if(isSuccess) t.classList.add('success');
-    t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 3000);
-  }
-
-  function startBroadcast(net) {
-    const d = DEVICES[currentId];
-    if(d.zone !== net) {
-      showToast(`⚠️ ${d.name} は ${net.toUpperCase()} に属していません。`, true); return;
-    }
-    if(document.getElementById('dev-'+currentId).classList.contains('error')) {
-      showToast("🚫 設定不整合で通信不能！", true); return;
-    }
-
-    showToast(`📡 ${d.name} からブロードキャスト`);
-    const senderId = currentId;
-    const hub = (net==='net1') ? 'hub1' : 'hub2';
-    const peerId = getPeerId(currentId);
-    
-    const p = document.createElement('div'); p.className='packet broadcast';
-    document.getElementById('topology').appendChild(p);
-    
-    anim(p, senderId, hub, ()=>{
-      p.remove();
-      const p1 = document.createElement('div'); p1.className='packet broadcast';
-      document.getElementById('topology').appendChild(p1);
-      const p2 = document.createElement('div'); p2.className='packet broadcast';
-      document.getElementById('topology').appendChild(p2);
-      
-      anim(p1, hub, peerId, ()=>{
-        const recEl = document.getElementById('dev-'+peerId);
-        if(recEl.classList.contains('error')) {
-          showToast("⚠️ 相手の設定ミスで不達", true); p1.style.backgroundColor='#fc8181';
-        } else { showToast("✅ 全端末に到達", false, true); }
-        setTimeout(()=>p1.remove(),200);
-      });
-      anim(p2, hub, 'router', ()=>{
-        p2.style.transition='all 0.2s'; p2.style.transform += ' scale(2)'; p2.style.opacity=0;
-        setTimeout(()=>p2.remove(),200);
-      });
-    });
+    setTimeout(()=>t.classList.remove('show'), 3000);
   }
 </script>
 </body>
