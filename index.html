@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>IPビット操作ラボ (ブロードキャスト分岐版)</title>
+  <title>IPビット操作ラボ (iPadスクロール対応版)</title>
   <style>
     :root {
       --bg: #1a202c;
@@ -107,9 +107,20 @@
 
     .fix-btn { margin-top: 8px; width: 100%; padding: 8px; background: #fff; color: #c53030; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
 
-    /* --- ビット表示 --- */
-    .bit-container { overflow-x: auto; padding-bottom: 5px; margin-top: 5px; }
-    .bit-row { display: flex; align-items: center; margin-bottom: 2px; }
+    /* --- ビット表示 (iPadスクロール対応) --- */
+    .bit-container { 
+      overflow-x: auto; 
+      -webkit-overflow-scrolling: touch; /* iPadでの慣性スクロール */
+      padding-bottom: 15px; 
+      margin-top: 5px; 
+      width: 100%;
+    }
+    .bit-row { 
+      display: flex; 
+      align-items: center; 
+      margin-bottom: 2px; 
+      width: max-content; /* 中身に合わせて幅を広げる */
+    }
     .bit-label { width: 145px; font-size: 10px; font-weight: bold; color: #a0aec0; text-align: right; padding-right: 12px; flex-shrink: 0; }
     .bit {
       width: 20px; height: 24px; display: flex; align-items: center; justify-content: center;
@@ -131,7 +142,14 @@
     .bit.interactive { cursor: pointer; border: 1px solid #666; }
     .bit.error-bit { background: var(--error-bg) !important; color: #faf089 !important; animation: blink 1s infinite alternate; }
 
-    .decimal-row { display: flex; align-items: center; margin-bottom: 6px; height: 24px; }
+    /* 10進数行も同様に幅を固定 */
+    .decimal-row { 
+      display: flex; 
+      align-items: center; 
+      margin-bottom: 6px; 
+      height: 24px; 
+      width: max-content; 
+    }
     .decimal-placeholder { width: 145px; flex-shrink: 0; }
     .decimal-group { width: 167px; display: flex; justify-content: center; align-items: center; flex-shrink: 0; }
     .decimal-val { font-family: monospace; font-size: 16px; font-weight: bold; }
@@ -422,7 +440,6 @@
     return row;
   }
 
-  // --- 改良版ブロードキャスト・分岐アニメーション ---
   function startBroadcast(net) {
     const d = DEVICES[currentId];
     if(d.zone !== net) {
@@ -440,24 +457,18 @@
     const hubId = (net==='net1') ? 'hub1' : 'hub2';
     const peerId = getPeerId(currentId);
     
-    // 1. デバイスから結節点(ハブ)へ
     const p1 = document.createElement('div'); p1.className='packet broadcast';
     document.getElementById('topology').appendChild(p1);
     
     anim(p1, currentId, hubId, () => {
       p1.remove();
-
-      // 2. 結節点で分岐して「隣のPC」と「ルータ」へ飛ばす
       const targets = [peerId, 'router'];
-      
       targets.forEach(targetId => {
         const pSub = document.createElement('div'); 
         pSub.className='packet broadcast';
         document.getElementById('topology').appendChild(pSub);
-        
         anim(pSub, hubId, targetId, () => {
           if(targetId === peerId) {
-            // 到着後のステータス判定
             if(document.getElementById('dev-'+peerId).classList.contains('error')) {
               showToast("⚠️ 宛先側の設定不整合で無視されました", true);
               pSub.style.background = "var(--error)";
@@ -465,7 +476,6 @@
               showToast("✅ 同一NW内の全端末へ到達！", false, true);
             }
           }
-          // パケット消去
           setTimeout(() => pSub.remove(), 500);
         });
       });
@@ -498,7 +508,6 @@
     el.style.left = sp.x + 'px'; el.style.top = sp.y + 'px';
     el.style.opacity = 1; el.style.transition = 'all 0.6s linear';
     requestAnimationFrame(()=>{
-      // 描画タイミングのズレを防ぐため二重にラップ
       requestAnimationFrame(()=>{
         const dx = ep.x - sp.x; const dy = ep.y - sp.y;
         el.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
