@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>IPビット操作ラボ (ブロードキャスト強化版)</title>
+  <title>IPビット操作ラボ (ブロードキャスト分岐版)</title>
   <style>
     :root {
       --bg: #1a202c;
@@ -31,6 +31,7 @@
     h1 { font-size: 20px; border-bottom: 2px solid var(--accent); margin-bottom: 15px; padding-bottom: 10px; }
     .container { max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 15px; }
 
+    /* --- ネットワーク図 --- */
     .topology-panel {
       background: #171923; border: 2px solid #4a5568; border-radius: 12px;
       height: 320px; position: relative; overflow: hidden; padding: 10px;
@@ -91,6 +92,7 @@
     .btn-net1 { background: var(--net1); }
     .btn-net2 { background: var(--net2); }
 
+    /* --- 下部パネル --- */
     .bottom-panel { display: grid; grid-template-columns: 240px 1fr; gap: 15px; }
     .config-box { background: var(--panel); padding: 15px; border-radius: 12px; border: 1px solid #4a5568; display: flex; flex-direction: column; gap: 12px; }
     .analysis-box { background: var(--panel); padding: 15px; border-radius: 12px; border: 1px solid #4a5568; display: flex; flex-direction: column; overflow: hidden; }
@@ -105,6 +107,7 @@
 
     .fix-btn { margin-top: 8px; width: 100%; padding: 8px; background: #fff; color: #c53030; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
 
+    /* --- ビット表示 --- */
     .bit-container { overflow-x: auto; padding-bottom: 5px; margin-top: 5px; }
     .bit-row { display: flex; align-items: center; margin-bottom: 2px; }
     .bit-label { width: 145px; font-size: 10px; font-weight: bold; color: #a0aec0; text-align: right; padding-right: 12px; flex-shrink: 0; }
@@ -419,7 +422,7 @@
     return row;
   }
 
-  // --- 改良版ブロードキャスト・アニメーション ---
+  // --- 改良版ブロードキャスト・分岐アニメーション ---
   function startBroadcast(net) {
     const d = DEVICES[currentId];
     if(d.zone !== net) {
@@ -437,18 +440,24 @@
     const hubId = (net==='net1') ? 'hub1' : 'hub2';
     const peerId = getPeerId(currentId);
     
-    // 1. 送信元からハブ（結節点）へ
-    const p1 = createPacket();
+    // 1. デバイスから結節点(ハブ)へ
+    const p1 = document.createElement('div'); p1.className='packet broadcast';
+    document.getElementById('topology').appendChild(p1);
+    
     anim(p1, currentId, hubId, () => {
       p1.remove();
 
-      // 2. ハブから「隣のPC」と「ルータ」へ分岐
+      // 2. 結節点で分岐して「隣のPC」と「ルータ」へ飛ばす
       const targets = [peerId, 'router'];
+      
       targets.forEach(targetId => {
-        const pSub = createPacket();
+        const pSub = document.createElement('div'); 
+        pSub.className='packet broadcast';
+        document.getElementById('topology').appendChild(pSub);
+        
         anim(pSub, hubId, targetId, () => {
           if(targetId === peerId) {
-            // 到着判定
+            // 到着後のステータス判定
             if(document.getElementById('dev-'+peerId).classList.contains('error')) {
               showToast("⚠️ 宛先側の設定不整合で無視されました", true);
               pSub.style.background = "var(--error)";
@@ -456,17 +465,11 @@
               showToast("✅ 同一NW内の全端末へ到達！", false, true);
             }
           }
+          // パケット消去
           setTimeout(() => pSub.remove(), 500);
         });
       });
     });
-  }
-
-  function createPacket() {
-    const p = document.createElement('div');
-    p.className = 'packet broadcast';
-    document.getElementById('topology').appendChild(p);
-    return p;
   }
 
   function fixNetwork() {
@@ -494,8 +497,8 @@
     const sp=getPx(s); const ep=getPx(e);
     el.style.left = sp.x + 'px'; el.style.top = sp.y + 'px';
     el.style.opacity = 1; el.style.transition = 'all 0.6s linear';
-    // 次のフレームで移動を開始
     requestAnimationFrame(()=>{
+      // 描画タイミングのズレを防ぐため二重にラップ
       requestAnimationFrame(()=>{
         const dx = ep.x - sp.x; const dy = ep.y - sp.y;
         el.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
