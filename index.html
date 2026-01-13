@@ -2,8 +2,8 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
-  <title>IPビット操作ラボ (iPadスクロール完全対応版)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>IPビット操作ラボ (iPad完全最適化版)</title>
   <style>
     :root {
       --bg: #1a202c;
@@ -107,45 +107,48 @@
 
     .fix-btn { margin-top: 8px; width: 100%; padding: 8px; background: #fff; color: #c53030; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
 
-    /* --- ビット表示エリア全体のスクロール処理 --- */
+    /* --- 【重要】iPad最適化設計 --- */
     .bit-container { 
-      overflow-x: auto; /* 強制的に横スクロールを許可 */
-      -webkit-overflow-scrolling: touch; /* iPadの滑らかなスクロール */
-      padding-bottom: 20px; 
-      margin-top: 5px; 
       width: 100%;
+      overflow-x: auto; /* 一応残すが、基本不要なように設計 */
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 10px;
     }
     .bit-row, .decimal-row { 
       display: flex; 
       align-items: center; 
-      margin-bottom: 4px; 
-      width: max-content; /* 画面幅を突き抜けて中身の幅を維持 */
-      min-width: 850px; /* iPadの幅(通常768px〜)より確実に広く設定しスクロールを誘発 */
+      margin-bottom: 3px; 
+      min-width: min-content; /* 中身の崩れ防止 */
     }
     .bit-label, .decimal-placeholder { 
-      width: 140px; /* きっちり書くために幅を戻す */
+      width: 130px; /* 固定幅 */
       font-size: 11px; 
       font-weight: bold; 
       color: #a0aec0; 
       text-align: right; 
-      padding-right: 15px; 
+      padding-right: 12px; 
       flex-shrink: 0;
       white-space: nowrap;
     }
     .bit {
-      width: 20px; 
-      height: 24px; display: flex; align-items: center; justify-content: center;
+      /* ビットの幅をiPadの画面幅に合わせて変動させる設定 */
+      width: calc((100vw - 420px) / 32); 
+      min-width: 15px; /* 小さくなりすぎ防止 */
+      max-width: 20px; /* 大きくなりすぎ防止 */
+      height: 24px; 
+      display: flex; align-items: center; justify-content: center;
       font-family: monospace; font-size: 12px; font-weight:bold; background: #1a202c; color: #555;
       border-radius: 2px; flex-shrink: 0; margin-right: 1px; border: 1px solid transparent;
     }
-    .bit.sep { width: 10px; background: transparent; color: #666; border: none; }
+    .bit.sep { width: 6px; background: transparent; color: #666; border: none; }
     
+    /* 配色 */
     .bit.ip-on { background: var(--ip-bg-on); color: #fff; border-bottom: 3px solid var(--ip-color); }
     .bit.ip-off { background: #1a202c; color: #555; border-bottom: 3px solid #718096; }
     .bit.mask-on { background: #555; color: #aaa; }
     .bit.nw-on { background: var(--highlight); color: #fff; }
     .bit.nw-off { background: #1a202c; color: #555; border: 1px dashed var(--highlight); opacity: 0.6; }
-    
     .bit.bc-net-on { background: var(--broadcast-orange); color: #fff; } 
     .bit.bc-net-off { background: #1a202c; color: #555; border: 1px dashed var(--broadcast-orange); opacity: 0.6; }
     .bit.bc-host-on { background: var(--broadcast-yellow); color: #1a202c; box-shadow: 0 0 5px var(--broadcast-yellow); }
@@ -154,11 +157,13 @@
     .bit.error-bit { background: var(--error-bg) !important; color: #faf089 !important; animation: blink 1s infinite alternate; }
 
     .decimal-group { 
-      width: 167px; 
+      /* ビット8個分の幅に合わせる */
+      width: calc(((100vw - 420px) / 32 + 1px) * 8 + 4px);
+      min-width: 130px;
       display: flex; justify-content: center; align-items: center; flex-shrink: 0; 
     }
     .decimal-val { font-family: monospace; font-size: 16px; font-weight: bold; }
-    .decimal-dot { width: 11px; text-align: center; color: #666; font-family: monospace; }
+    .decimal-dot { width: 8px; text-align: center; color: #666; font-family: monospace; }
     
     .decimal-val.ip { color: var(--ip-color); }
     .decimal-val.nw { color: var(--highlight); }
@@ -278,12 +283,10 @@
     const maskBits = Array(32).fill(0).map((_,i)=>i<cidr?1:0);
     const netBits = ipBits.map((b,i)=>b&maskBits[i]);
     const bcBits = ipBits.map((b,i)=> i < cidr ? (b & maskBits[i]) : 1);
-    
     const getOcts = (bits) => {
       let res=[]; for(let i=0;i<4;i++) res.push(parseInt(bits.slice(i*8,(i+1)*8).join(''),2));
       return res;
     };
-
     return {
       ipOcts: octs, ipBits: ipBits,
       maskBits: maskBits,
@@ -315,8 +318,7 @@
   }
 
   function selectPC(id) {
-    currentId = id;
-    activeBroadcastNet = null;
+    currentId = id; activeBroadcastNet = null;
     const data = DEVICES[id];
     document.querySelectorAll('.device').forEach(d => d.classList.remove('selected'));
     document.getElementById('dev-'+id).classList.add('selected');
@@ -357,14 +359,9 @@
     const peer = DEVICES[getPeerId(currentId)];
     const peerCalc = getCalculatedData(peer.ip, peer.cidr);
     const isMismatch = (calc.netIp !== peerCalc.netIp);
-
     document.getElementById('warning-area').classList.toggle('active', isMismatch);
     document.getElementById('success-area').classList.toggle('active', !isMismatch);
-    if(isMismatch) {
-        document.getElementById('peer-name').innerText = peer.name;
-        activeBroadcastNet = null;
-    }
-
+    if(isMismatch) document.getElementById('peer-name').innerText = peer.name;
     renderBits(calc, d.cidr, peerCalc.netIp);
     renderBroadcastInfo(calc, d.cidr);
   }
@@ -373,7 +370,6 @@
     const area = document.getElementById('bit-area');
     area.innerHTML = '';
     const peerNetBits = toBin(parseIP(peerNetIp));
-
     area.appendChild(createDecimalRow(calc.ipOcts, 'ip'));
     area.appendChild(createBitRow('IPアドレス', calc.ipBits, 'ip', cidr, peerNetBits));
     area.appendChild(createBitRow('サブネットマスク', calc.maskBits, 'mask', cidr));
@@ -384,8 +380,7 @@
   function renderBroadcastInfo(calc, cidr) {
     const area = document.getElementById('broadcast-analysis-area');
     if (!activeBroadcastNet || document.getElementById('dev-'+currentId).classList.contains('error')) {
-      area.style.display = 'none';
-      return;
+      area.style.display = 'none'; return;
     }
     area.style.display = 'block';
     area.innerHTML = '<div style="font-size:11px; color:var(--broadcast-yellow); font-weight:bold; margin-bottom:8px; opacity:0.8;">📡 ブロードキャストアドレス解析:</div>';
@@ -397,7 +392,6 @@
     const row = document.createElement('div'); row.className = 'bit-row';
     const lbl = document.createElement('div'); lbl.className = 'bit-label'; lbl.innerText = label;
     row.appendChild(lbl);
-
     bits.forEach((b, i) => {
       if(i > 0 && i % 8 === 0) {
         const sep = document.createElement('div'); sep.className='bit sep'; sep.innerText='.'; row.appendChild(sep);
@@ -408,8 +402,7 @@
         cls += ' interactive ' + (b===1 ? 'ip-on' : 'ip-off');
         if(i < cidr && peerNetBits.length && b !== peerNetBits[i]) cls += ' error-bit';
         bit.onclick = () => toggleIpBit(i);
-      } else if (type === 'mask') {
-        if(b===1) cls += ' mask-on'; 
+      } else if (type === 'mask') { if(b===1) cls += ' mask-on'; 
       } else if (type === 'net') {
         if(i < cidr) {
           cls += (b===1 ? ' nw-on' : ' nw-off');
@@ -418,11 +411,8 @@
           }
         }
       } else if (type === 'bc') {
-        if(i < cidr) {
-          cls += (b===1 ? ' bc-net-on' : ' bc-net-off');
-        } else {
-          cls += (b===1 ? ' bc-host-on' : ' bc-host-off');
-        }
+        if(i < cidr) cls += (b===1 ? ' bc-net-on' : ' bc-net-off');
+        else cls += (b===1 ? ' bc-host-on' : ' bc-host-off');
       }
       bit.className = cls; bit.innerText = b; row.appendChild(bit);
     });
@@ -432,54 +422,36 @@
   function createDecimalRow(octs, type) {
     const row = document.createElement('div'); row.className = 'decimal-row';
     const ph = document.createElement('div'); ph.className = 'decimal-placeholder'; row.appendChild(ph);
-    
     octs.forEach((oct, i) => {
-      if(i > 0) { 
-        const dot = document.createElement('div'); dot.className = 'decimal-dot'; dot.innerText = '.'; row.appendChild(dot); 
-      }
+      if(i > 0) { const dot = document.createElement('div'); dot.className = 'decimal-dot'; dot.innerText = '.'; row.appendChild(dot); }
       const group = document.createElement('div'); group.className = 'decimal-group';
       const val = document.createElement('div'); val.className = 'decimal-val ' + type; val.innerText = oct;
-      group.appendChild(val);
-      row.appendChild(group);
+      group.appendChild(val); row.appendChild(group);
     });
     return row;
   }
 
   function startBroadcast(net) {
     const d = DEVICES[currentId];
-    if(d.zone !== net) {
-      showToast(`⚠️ ${d.name} は ${net.toUpperCase()} の所属ではありません。`, true); 
-      activeBroadcastNet = null; refreshAnalysis(); return;
-    }
-    if(document.getElementById('dev-'+currentId).classList.contains('error')) {
-      showToast("🚫 ネットワーク設定不整合のため送信できません", true);
-      activeBroadcastNet = null; refreshAnalysis(); return;
-    }
-
+    if(d.zone !== net) { showToast(`⚠️ ${d.name} は ${net.toUpperCase()} の所属ではありません。`, true); return; }
+    if(document.getElementById('dev-'+currentId).classList.contains('error')) { showToast("🚫 ネットワーク設定不整合のため送信できません", true); return; }
     activeBroadcastNet = net; refreshAnalysis();
     showToast(`📡 ${d.name} からブロードキャスト送出中...`);
-
     const hubId = (net==='net1') ? 'hub1' : 'hub2';
     const peerId = getPeerId(currentId);
-    
     const p1 = document.createElement('div'); p1.className='packet broadcast';
     document.getElementById('topology').appendChild(p1);
-    
     anim(p1, currentId, hubId, () => {
       p1.remove();
       const targets = [peerId, 'router'];
       targets.forEach(targetId => {
-        const pSub = document.createElement('div'); 
-        pSub.className='packet broadcast';
+        const pSub = document.createElement('div'); pSub.className='packet broadcast';
         document.getElementById('topology').appendChild(pSub);
         anim(pSub, hubId, targetId, () => {
           if(targetId === peerId) {
             if(document.getElementById('dev-'+peerId).classList.contains('error')) {
-              showToast("⚠️ 宛先側の設定不整合で無視されました", true);
-              pSub.style.background = "var(--error)";
-            } else {
-              showToast("✅ 同一NW内の全端末へ到達！", false, true);
-            }
+              showToast("⚠️ 宛先側の設定不整合で無視されました", true); pSub.style.background = "var(--error)";
+            } else { showToast("✅ 同一NW内の全端末へ到達！", false, true); }
           }
           setTimeout(() => pSub.remove(), 500);
         });
