@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>IPビット操作ラボ (独立スクロール版)</title>
+  <title>IPビット操作ラボ (NW重複警告版)</title>
   <style>
     :root {
       --bg: #1a202c;
@@ -92,13 +92,27 @@
     .btn-net1 { background: var(--net1); }
     .btn-net2 { background: var(--net2); }
 
+    /* 重複警告表示 */
+    .conflict-warning {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      background: rgba(197, 48, 48, 0.95); color: white; padding: 12px 24px; border-radius: 8px;
+      font-weight: bold; z-index: 100; display: none; border: 2px solid #fff;
+      box-shadow: 0 0 20px rgba(0,0,0,0.7); pointer-events: none; text-align: center; min-width: 320px;
+    }
+    .conflict-warning.active { display: block; animation: shake 0.5s infinite; }
+    @keyframes shake {
+      0% { transform: translate(-50%, -50%) translateX(0); }
+      25% { transform: translate(-50%, -50%) translateX(5px); }
+      50% { transform: translate(-50%, -50%) translateX(0); }
+      75% { transform: translate(-50%, -50%) translateX(-5px); }
+      100% { transform: translate(-50%, -50%) translateX(0); }
+    }
+
     /* --- 下部レイアウト --- */
     .bottom-panel { display: grid; grid-template-columns: 240px 1fr; gap: 15px; }
     .config-box { background: var(--panel); padding: 15px; border-radius: 12px; border: 1px solid #4a5568; display: flex; flex-direction: column; gap: 12px; }
     
-    /* 解析エリア：縦に2つ並べるコンテナ */
     .analysis-stack { display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
-    
     .analysis-box { 
       background: var(--panel); padding: 12px; border-radius: 12px; border: 1px solid #4a5568;
       display: flex; flex-direction: column;
@@ -112,30 +126,11 @@
     .warning-area { background: var(--warn-bg); border: 2px solid var(--error); }
     .success-area { background: #22543d; border: 2px solid #48bb78; }
 
-    /* --- スクロール制御の核心 --- */
-    .bit-scroll-area { 
-      overflow-x: auto; 
-      -webkit-overflow-scrolling: touch; 
-      width: 100%;
-      margin-top: 5px;
-    }
-    /* 行の最小幅を固定値(840px)に設定してiPadでスクロールを強制発動させる */
-    .bit-row, .decimal-row { 
-      display: flex; 
-      align-items: center; 
-      margin-bottom: 2px; 
-      width: 840px; 
-      flex-shrink: 0;
-    }
+    .bit-scroll-area { overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; margin-top: 5px; }
+    .bit-row, .decimal-row { display: flex; align-items: center; margin-bottom: 2px; width: 840px; flex-shrink: 0; }
     .bit-label, .decimal-placeholder { 
-      width: 140px; 
-      font-size: 11px; 
-      font-weight: bold; 
-      color: #a0aec0; 
-      text-align: right; 
-      padding-right: 15px; 
-      flex-shrink: 0;
-      white-space: nowrap;
+      width: 140px; font-size: 11px; font-weight: bold; color: #a0aec0; text-align: right; 
+      padding-right: 15px; flex-shrink: 0; white-space: nowrap;
     }
     .bit {
       width: 20px; height: 24px; display: flex; align-items: center; justify-content: center;
@@ -195,6 +190,11 @@
 
     <div class="zone zone-net1"><div class="zone-label" style="color:var(--net1)">NET 1</div></div>
     <div class="zone zone-net2"><div class="zone-label" style="color:var(--net2)">NET 2</div></div>
+
+    <div id="conflict-msg" class="conflict-warning">
+      ⚠️ ネットワークアドレス重複エラー<br>
+      <span style="font-size: 11px; font-weight: normal;">NET1 と NET2 が同じNW範囲になっています。<br>ルーターによるルーティングが不可能です！</span>
+    </div>
 
     <div class="device d-router" id="dev-router"><span class="device-icon">🧭</span><span class="device-name">Router</span></div>
     
@@ -305,17 +305,35 @@
   window.onload = () => { updateAllLabels(); selectPC('pc11'); };
 
   function updateAllLabels() {
+    let netAddresses = {};
+
     ['net1', 'net2'].forEach(z => {
       const ids = Object.keys(DEVICES).filter(k => DEVICES[k].zone === z);
       const c1 = getCalculatedData(DEVICES[ids[0]].ip, DEVICES[ids[0]].cidr);
       const c2 = getCalculatedData(DEVICES[ids[1]].ip, DEVICES[ids[1]].cidr);
       const isMismatch = c1.netIp !== c2.netIp;
+      
+      // 代表NWアドレスを保存
+      netAddresses[z] = c1.netIp;
+
       ids.forEach(id => {
         const el = document.getElementById('dev-'+id);
         document.getElementById('lbl-'+id).innerText = `${DEVICES[id].ip} /${DEVICES[id].cidr}`;
         el.classList.toggle('error', isMismatch);
       });
     });
+
+    // NET1とNET2の重複チェック
+    const conflictMsg = document.getElementById('conflict-msg');
+    const isConflict = (netAddresses['net1'] === netAddresses['net2']);
+    
+    if (isConflict) {
+      conflictMsg.classList.add('active');
+      document.getElementById('dev-router').style.filter = 'drop-shadow(0 0 10px var(--error))';
+    } else {
+      conflictMsg.classList.remove('active');
+      document.getElementById('dev-router').style.filter = 'none';
+    }
   }
 
   function selectPC(id) {
@@ -430,6 +448,12 @@
     const d = DEVICES[currentId];
     if(d.zone !== net) { showToast(`⚠️ ${d.name} は ${net.toUpperCase()} の所属ではありません。`, true); return; }
     if(document.getElementById('dev-'+currentId).classList.contains('error')) { showToast("🚫 ネットワーク設定不整合のため送信できません", true); return; }
+    
+    // 追加：重複警告中も送信は試みれるがトーストを出す
+    const net1C = getCalculatedData(DEVICES['pc11'].ip, DEVICES['pc11'].cidr);
+    const net2C = getCalculatedData(DEVICES['pc21'].ip, DEVICES['pc21'].cidr);
+    if(net1C.netIp === net2C.netIp) showToast("⚠️ NWアドレス重複によりルーティングが不安定です", true);
+
     activeBroadcastNet = net; refreshAnalysis();
     showToast(`📡 ${d.name} からブロードキャスト送出中...`);
     const hubId = (net==='net1') ? 'hub1' : 'hub2';
