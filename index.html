@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>IPビット操作ラボ (NW重複警告版)</title>
+  <title>IPビット操作ラボ (NW/BC警告版)</title>
   <style>
     :root {
       --bg: #1a202c;
@@ -17,7 +17,7 @@
       --net1: #38b2ac;
       --net2: #ed8936;
       --mask: #a0aec0;
-      --highlight: #d53f8c;
+      --highlight: #d53f8c; /* Network Address Pink */
       --broadcast-orange: #ed8936;
       --broadcast-yellow: #f6e05e;
       --ip-color: #d6bcfa;   
@@ -121,9 +121,21 @@
     input[type="text"] { width: 100%; padding: 8px; background: #171923; border: 1px solid #555; color: #fff; font-family: monospace; border-radius: 6px; box-sizing: border-box;}
     .range-wrap { display: flex; align-items: center; gap: 10px; }
 
-    .warning-area, .success-area { padding: 10px; display: none; margin-top: 5px; border-radius: 6px; }
-    .warning-area.active, .success-area.active { display: block; }
+    /* 警告エリアの共通スタイル */
+    .warning-area, .success-area, .broadcast-warning-area, .nw-warning-area { 
+      padding: 10px; display: none; margin-top: 5px; border-radius: 6px; 
+    }
+    .warning-area.active, .success-area.active, .broadcast-warning-area.active, .nw-warning-area.active { 
+      display: block; 
+    }
+    
+    /* 通常のNW不整合警告 */
     .warning-area { background: var(--warn-bg); border: 2px solid var(--error); }
+    /* ブロードキャストアドレス警告 */
+    .broadcast-warning-area { background: #744210; border: 2px solid var(--broadcast-orange); }
+    /* ネットワークアドレス警告 (追加) */
+    .nw-warning-area { background: #4a2040; border: 2px solid var(--highlight); }
+
     .success-area { background: #22543d; border: 2px solid #48bb78; }
 
     .bit-scroll-area { overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; margin-top: 5px; }
@@ -225,6 +237,20 @@
         </div>
       </div>
       
+      <div id="bc-warning-area" class="broadcast-warning-area">
+        <div style="color:var(--broadcast-yellow); font-weight:bold; font-size:12px;">⚠️ 無効なホストIP</div>
+        <div style="font-size:11px; color:#ffebee; margin:5px 0;">
+          このIPは<strong>ブロードキャストアドレス</strong>です。<br>端末に割り当てることはできません。
+        </div>
+      </div>
+
+      <div id="nw-warning-area" class="nw-warning-area">
+        <div style="color:var(--highlight); font-weight:bold; font-size:12px;">⚠️ 無効なホストIP</div>
+        <div style="font-size:11px; color:#ffebee; margin:5px 0;">
+          このIPは<strong>ネットワークアドレス</strong>です。<br>端末に割り当てることはできません。
+        </div>
+      </div>
+
       <div id="warning-area" class="warning-area">
         <div style="color:#fc8181; font-weight:bold; font-size:12px;">⚠️ ネットワーク不整合</div>
         <div style="font-size:11px; color:#ffd7d7; margin:5px 0;">隣の <span id="peer-name"></span> とNWアドレスが一致しません。</div>
@@ -376,8 +402,34 @@
     const peerCalc = getCalculatedData(peer.ip, peer.cidr);
     const isMismatch = (calc.netIp !== peerCalc.netIp);
 
+    // ブロードキャスト / ネットワークアドレス 一致チェック
+    const isBroadcastMatch = (d.ip === calc.bcIp);
+    const isNetworkMatch = (d.ip === calc.netIp); // 追加: NWアドレス一致
+
+    const bcWarnArea = document.getElementById('bc-warning-area');
+    const nwWarnArea = document.getElementById('nw-warning-area'); // 追加
+    const ipInput = document.getElementById('cfg-ip');
+
+    // リセット
+    bcWarnArea.classList.remove('active');
+    nwWarnArea.classList.remove('active');
+    ipInput.style.color = '#fff';
+    ipInput.style.borderColor = '#555';
+
+    if (isBroadcastMatch) {
+      bcWarnArea.classList.add('active');
+      ipInput.style.color = 'var(--broadcast-yellow)';
+      ipInput.style.borderColor = 'var(--broadcast-yellow)';
+    } else if (isNetworkMatch) {
+      nwWarnArea.classList.add('active');
+      ipInput.style.color = 'var(--highlight)'; // NWアドレスカラー(ピンク)
+      ipInput.style.borderColor = 'var(--highlight)';
+    }
+
+    // 既存のNW不整合チェック表示ロジック
+    // (無効なIPのときは整合性OKを出さない)
     document.getElementById('warning-area').classList.toggle('active', isMismatch);
-    document.getElementById('success-area').classList.toggle('active', !isMismatch);
+    document.getElementById('success-area').classList.toggle('active', !isMismatch && !isBroadcastMatch && !isNetworkMatch);
     if(isMismatch) document.getElementById('peer-name').innerText = peer.name;
 
     // NWエリア描画
@@ -449,7 +501,6 @@
     if(d.zone !== net) { showToast(`⚠️ ${d.name} は ${net.toUpperCase()} の所属ではありません。`, true); return; }
     if(document.getElementById('dev-'+currentId).classList.contains('error')) { showToast("🚫 ネットワーク設定不整合のため送信できません", true); return; }
     
-    // 追加：重複警告中も送信は試みれるがトーストを出す
     const net1C = getCalculatedData(DEVICES['pc11'].ip, DEVICES['pc11'].cidr);
     const net2C = getCalculatedData(DEVICES['pc21'].ip, DEVICES['pc21'].cidr);
     if(net1C.netIp === net2C.netIp) showToast("⚠️ NWアドレス重複によりルーティングが不安定です", true);
