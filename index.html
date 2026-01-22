@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>IPビット操作ラボ (NW/BC警告版)</title>
+  <title>IPビット操作ラボ (NW/BC/重複警告版)</title>
   <style>
     :root {
       --bg: #1a202c;
@@ -68,6 +68,8 @@
     @keyframes floatBadge { from { transform: translateX(-50%) translateY(0); } to { transform: translateX(-50%) translateY(-3px); } }
 
     .device.error { border-color: var(--error); background: rgba(252, 129, 129, 0.15); animation: pulse-error 2s infinite; }
+    @keyframes pulse-error { 0% { box-shadow: 0 0 0 0 rgba(252, 129, 129, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(252, 129, 129, 0); } 100% { box-shadow: 0 0 0 0 rgba(252, 129, 129, 0); } }
+
     .device-icon { font-size: 40px; display: block; margin-bottom: 2px; }
     .device-name { font-size: 11px; font-weight: bold; background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 4px; display:inline-block; white-space: nowrap;}
     .device-ip { 
@@ -129,13 +131,9 @@
       display: block; 
     }
     
-    /* 通常のNW不整合警告 */
     .warning-area { background: var(--warn-bg); border: 2px solid var(--error); }
-    /* ブロードキャストアドレス警告 */
     .broadcast-warning-area { background: #744210; border: 2px solid var(--broadcast-orange); }
-    /* ネットワークアドレス警告 (追加) */
     .nw-warning-area { background: #4a2040; border: 2px solid var(--highlight); }
-
     .success-area { background: #22543d; border: 2px solid #48bb78; }
 
     .bit-scroll-area { overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; margin-top: 5px; }
@@ -177,6 +175,7 @@
       transform: translateY(100px); transition: 0.3s; z-index: 100;
     }
     .msg-toast.show { transform: translateY(0); }
+    .msg-toast.error { border-left-color: var(--error); }
 
     .packet {
       position: absolute; width: 14px; height: 14px; border-radius: 50%;
@@ -188,7 +187,7 @@
 <body>
 
 <div class="container">
-  <h1><span>🛠️ IPビット操作ラボ</span></h1>
+  <h1><span>🛠️ IPアドレスの仕組み</span></h1>
 
   <div class="topology-panel" id="topology">
     <svg class="cables">
@@ -282,11 +281,12 @@
 <div id="toast" class="msg-toast"></div>
 
 <script>
+  // CIDRをすべて24に初期化
   const DEVICES = {
     'pc11': { ip: '192.168.10.7', cidr: 24, name: 'PC 11', zone: 'net1' },
     'pc12': { ip: '192.168.10.20', cidr: 24, name: 'PC 12', zone: 'net1' },
-    'pc21': { ip: '192.168.15.147', cidr: 23, name: 'くまPC', zone: 'net2' },
-    'pc22': { ip: '192.168.15.190', cidr: 23, name: 'PC 22', zone: 'net2' }
+    'pc21': { ip: '192.168.15.147', cidr: 24, name: 'くまPC', zone: 'net2' },
+    'pc22': { ip: '192.168.15.190', cidr: 24, name: 'PC 22', zone: 'net2' }
   };
   let currentId = 'pc11';
   let activeBroadcastNet = null;
@@ -332,22 +332,41 @@
 
   function updateAllLabels() {
     let netAddresses = {};
+    let allIps = {};
+    let duplicateIps = new Set();
 
+    // 1. IPの完全重複チェック
+    for(let id in DEVICES) {
+        let ip = DEVICES[id].ip;
+        if(allIps[ip]) {
+            duplicateIps.add(ip);
+        }
+        allIps[ip] = true;
+    }
+
+    // 2. ゾーンごとのミスマッチと全体の表示更新
     ['net1', 'net2'].forEach(z => {
       const ids = Object.keys(DEVICES).filter(k => DEVICES[k].zone === z);
       const c1 = getCalculatedData(DEVICES[ids[0]].ip, DEVICES[ids[0]].cidr);
       const c2 = getCalculatedData(DEVICES[ids[1]].ip, DEVICES[ids[1]].cidr);
       const isMismatch = c1.netIp !== c2.netIp;
       
-      // 代表NWアドレスを保存
       netAddresses[z] = c1.netIp;
 
       ids.forEach(id => {
         const el = document.getElementById('dev-'+id);
+        const hasIpDuplicate = duplicateIps.has(DEVICES[id].ip);
+        
         document.getElementById('lbl-'+id).innerText = `${DEVICES[id].ip} /${DEVICES[id].cidr}`;
-        el.classList.toggle('error', isMismatch);
+        
+        // ネットワーク不整合か、IPアドレス自体が重複している場合に赤枠にする
+        el.classList.toggle('error', isMismatch || hasIpDuplicate);
       });
     });
+
+    if (duplicateIps.size > 0) {
+        showToast(`⚠️ IPアドレス [${Array.from(duplicateIps).join(', ')}] が重複しています！`, true);
+    }
 
     // NET1とNET2の重複チェック
     const conflictMsg = document.getElementById('conflict-msg');
@@ -402,15 +421,13 @@
     const peerCalc = getCalculatedData(peer.ip, peer.cidr);
     const isMismatch = (calc.netIp !== peerCalc.netIp);
 
-    // ブロードキャスト / ネットワークアドレス 一致チェック
     const isBroadcastMatch = (d.ip === calc.bcIp);
-    const isNetworkMatch = (d.ip === calc.netIp); // 追加: NWアドレス一致
+    const isNetworkMatch = (d.ip === calc.netIp);
 
     const bcWarnArea = document.getElementById('bc-warning-area');
-    const nwWarnArea = document.getElementById('nw-warning-area'); // 追加
+    const nwWarnArea = document.getElementById('nw-warning-area');
     const ipInput = document.getElementById('cfg-ip');
 
-    // リセット
     bcWarnArea.classList.remove('active');
     nwWarnArea.classList.remove('active');
     ipInput.style.color = '#fff';
@@ -422,17 +439,14 @@
       ipInput.style.borderColor = 'var(--broadcast-yellow)';
     } else if (isNetworkMatch) {
       nwWarnArea.classList.add('active');
-      ipInput.style.color = 'var(--highlight)'; // NWアドレスカラー(ピンク)
+      ipInput.style.color = 'var(--highlight)';
       ipInput.style.borderColor = 'var(--highlight)';
     }
 
-    // 既存のNW不整合チェック表示ロジック
-    // (無効なIPのときは整合性OKを出さない)
     document.getElementById('warning-area').classList.toggle('active', isMismatch);
     document.getElementById('success-area').classList.toggle('active', !isMismatch && !isBroadcastMatch && !isNetworkMatch);
     if(isMismatch) document.getElementById('peer-name').innerText = peer.name;
 
-    // NWエリア描画
     const nwArea = document.getElementById('bit-area-nw');
     nwArea.innerHTML = '';
     const pNetBits = toBin(parseIP(peerCalc.netIp));
@@ -442,7 +456,6 @@
     nwArea.appendChild(createBitRow('ネットワークアドレス', calc.netBits, 'net', d.cidr, pNetBits));
     nwArea.appendChild(createDecimalRow(calc.netOcts, 'nw'));
 
-    // BCエリア描画
     const bcBox = document.getElementById('bc-analysis-box');
     const bcArea = document.getElementById('bit-area-bc');
     if (!activeBroadcastNet || document.getElementById('dev-'+currentId).classList.contains('error')) {
@@ -499,11 +512,11 @@
   function startBroadcast(net) {
     const d = DEVICES[currentId];
     if(d.zone !== net) { showToast(`⚠️ ${d.name} は ${net.toUpperCase()} の所属ではありません。`, true); return; }
-    if(document.getElementById('dev-'+currentId).classList.contains('error')) { showToast("🚫 ネットワーク設定不整合のため送信できません", true); return; }
+    if(document.getElementById('dev-'+currentId).classList.contains('error')) { showToast("🚫 設定不整合またはIP重複のため送信できません", true); return; }
     
     const net1C = getCalculatedData(DEVICES['pc11'].ip, DEVICES['pc11'].cidr);
     const net2C = getCalculatedData(DEVICES['pc21'].ip, DEVICES['pc21'].cidr);
-    if(net1C.netIp === net2C.netIp) showToast("⚠️ NWアドレス重複によりルーティングが不安定です", true);
+    if(net1C.netIp === net2C.netIp) showToast("⚠️ NWアドレス重複によりルーティングが不可能です", true);
 
     activeBroadcastNet = net; refreshAnalysis();
     showToast(`📡 ${d.name} からブロードキャスト送出中...`);
@@ -520,7 +533,7 @@
         anim(pSub, hubId, targetId, () => {
           if(targetId === peerId) {
             if(document.getElementById('dev-'+peerId).classList.contains('error')) {
-              showToast("⚠️ 宛先側の設定不整合で無視されました", true); pSub.style.background = "var(--error)";
+              showToast("⚠️ 宛先側の設定エラーにより無視されました", true); pSub.style.background = "var(--error)";
             } else { showToast("✅ 同一NW内の全端末へ到達！", false, true); }
           }
           setTimeout(() => pSub.remove(), 500);
